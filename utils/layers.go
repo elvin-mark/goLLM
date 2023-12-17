@@ -9,15 +9,11 @@ import (
 
 func LayerNorm(x *data.Tensor, w *data.Tensor, b *data.Tensor) (t data.Tensor) {
 	eps, _ := strconv.ParseFloat("1E-5", 64)
-	axis := make([]int, len(x.Shape))
-	for i := 0; i < len(x.Shape); i++ {
-		axis[i] = i
-	}
 	fn := func(x float64) float64 {
 		return math.Sqrt(x + eps)
 	}
-	u := x.Mean(axis)
-	v := x.Var(axis, &u)
+	u := x.Mean(-1)
+	v := x.Var(-1, &u)
 	s := v.Apply(fn)
 	o := x.Sub(&u)
 	o = o.Div(&s)
@@ -26,7 +22,7 @@ func LayerNorm(x *data.Tensor, w *data.Tensor, b *data.Tensor) (t data.Tensor) {
 	return
 }
 
-func Softmax(x *data.Tensor, axis []int) (t data.Tensor) {
+func Softmax(x *data.Tensor, axis int) (t data.Tensor) {
 	m := x.Max(axis)
 	o := x.Sub(&m)
 	o = o.Apply(math.Exp)

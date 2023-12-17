@@ -9,5 +9,7 @@ import (
 func TestModels() {
 	conf := models.NewGPT2Config()
 	gpt := models.NewGPT2(conf)
-	fmt.Println(gpt)
+	gpt.Init()
+	o := gpt.Forward([]int{3, 4, 5})
+	fmt.Println(o)
 }
