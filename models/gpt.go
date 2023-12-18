@@ -7,24 +7,19 @@ import (
 	"github.com/elvin-mark/goLLM/utils"
 )
 
-type Param struct {
-	w *data.Tensor
-	b *data.Tensor
-}
-
 type MLP struct {
 	fc   Param
 	proj Param
 }
 
-type Attention struct {
+type GPT2Attention struct {
 	attn Param
 	proj Param
 }
 
-type Block struct {
+type GPT2Block struct {
 	ln1  Param
-	attn Attention
+	attn GPT2Attention
 	ln2  Param
 	mlp  MLP
 }
@@ -41,34 +36,25 @@ type GPT2 struct {
 	conf   GPT2Config
 	wpe    Param
 	wte    Param
-	blocks []Block
+	blocks []GPT2Block
 	lnF    Param
 }
 
-func attention(q *data.Tensor, k *data.Tensor, v *data.Tensor, mask *data.Tensor) (r data.Tensor) {
-	o := k.Transpose()
-	o = q.Dot(&o)
+func attention(q data.Tensor, k data.Tensor, v data.Tensor, mask data.Tensor) (r data.Tensor) {
+	o := q.Dot(k.Transpose())
 	tmp := data.NewTensor([][]float64{{math.Sqrt(float64(q.Shape[1]))}}, []int{1, 1})
-	o = o.Div(&tmp)
-	o = o.Add(mask)
-	r = o.Dot(v)
+	r = o.Div(tmp).Add(mask).Dot(v)
 	return
 }
 
-func linear(x *data.Tensor, w *data.Tensor, b *data.Tensor) (r data.Tensor) {
-	o := x.Dot(w)
-	r = o.Add(b)
-	return
-}
-
-func ffn(x *data.Tensor, mlp MLP) (r data.Tensor) {
-	o := linear(x, mlp.fc.w, mlp.fc.b)
+func ffn(x data.Tensor, mlp MLP) (r data.Tensor) {
+	o := utils.Linear(x, mlp.fc.w, mlp.fc.b)
 	o = o.Apply(utils.GeLU)
-	r = linear(&o, mlp.proj.w, mlp.proj.b)
+	r = utils.Linear(o, mlp.proj.w, mlp.proj.b)
 	return r
 }
 
-func splitQKVTensor(x *data.Tensor, nHeads int) (qs, ks, vs []data.Tensor) {
+func splitQKVTensor(x data.Tensor, nHeads int) (qs, ks, vs []data.Tensor) {
 	rows := x.Shape[0]
 	cols := x.Shape[1]
 	newCols := cols / (3 * nHeads)
@@ -105,9 +91,9 @@ func hstackTensor(ts []data.Tensor) (r data.Tensor) {
 	return
 }
 
-func mha(x *data.Tensor, attn Attention, conf GPT2Config) (r data.Tensor) {
-	o := linear(x, attn.attn.w, attn.attn.b)
-	qs, ks, vs := splitQKVTensor(x, conf.nHeads)
+func mha(x data.Tensor, attn GPT2Attention, conf GPT2Config) (r data.Tensor) {
+	o := utils.Linear(x, attn.attn.w, attn.attn.b)
+	qs, ks, vs := splitQKVTensor(o, conf.nHeads)
 	tmp := make([]data.Tensor, 0)
 	mask := data.NewTensor(nil, []int{x.Shape[0], x.Shape[0]})
 	mask.UpTri()
@@ -116,21 +102,21 @@ func mha(x *data.Tensor, attn Attention, conf GPT2Config) (r data.Tensor) {
 	}
 	mask = mask.Apply(fn)
 	for i := 0; i < conf.nHeads; i++ {
-		tmp = append(tmp, attention(&qs[i], &ks[i], &vs[i], &mask))
+		tmp = append(tmp, attention(qs[i], ks[i], vs[i], mask))
 	}
 	o = hstackTensor(tmp)
-	r = linear(&o, attn.proj.w, attn.proj.b)
+	r = utils.Linear(o, attn.proj.w, attn.proj.b)
 	return
 }
 
-func transformerBlock(x *data.Tensor, block Block, conf GPT2Config) data.Tensor {
+func transformerBlock(x data.Tensor, block GPT2Block, conf GPT2Config) data.Tensor {
 	o := utils.LayerNorm(x, block.ln1.w, block.ln1.b)
-	o = mha(&o, block.attn, conf)
+	o = mha(o, block.attn, conf)
 	o = o.Add(x)
 
-	r := utils.LayerNorm(&o, block.ln2.w, block.ln2.b)
-	r = ffn(&r, block.mlp)
-	r = r.Add(&o)
+	r := utils.LayerNorm(o, block.ln2.w, block.ln2.b)
+	r = ffn(r, block.mlp)
+	r = r.Add(o)
 	return r
 }
 
@@ -139,45 +125,43 @@ func (g *GPT2) Init() {
 		tmpW := data.NewTensor(nil, []int{g.conf.vocabSize, g.conf.embDim})
 		tmpW.Random()
 		g.wte = Param{
-			w: &tmpW,
-			b: nil,
+			w: tmpW,
 		}
 	}
 	{
 		tmpW := data.NewTensor(nil, []int{g.conf.ctxLen, g.conf.embDim})
 		tmpW.Random()
 		g.wpe = Param{
-			w: &tmpW,
-			b: nil,
+			w: tmpW,
 		}
 	}
-	g.blocks = make([]Block, g.conf.nLayers)
+	g.blocks = make([]GPT2Block, g.conf.nLayers)
 	for i := range g.blocks {
 		tmpW := data.NewTensor(nil, []int{1, g.conf.embDim})
 		tmpW.Random()
 		tmpb := data.NewTensor(nil, []int{1, g.conf.embDim})
 		tmpb.Random()
 		ln1 := Param{
-			w: &tmpW,
-			b: &tmpb,
+			w: tmpW,
+			b: tmpb,
 		}
 		tmpW = data.NewTensor(nil, []int{g.conf.embDim, 3 * g.conf.embDim})
 		tmpW.Random()
 		tmpb = data.NewTensor(nil, []int{1, 3 * g.conf.embDim})
 		tmpb.Random()
 		attn := Param{
-			w: &tmpW,
-			b: &tmpb,
+			w: tmpW,
+			b: tmpb,
 		}
 		tmpW = data.NewTensor(nil, []int{g.conf.embDim, g.conf.embDim})
 		tmpW.Random()
 		tmpb = data.NewTensor(nil, []int{1, g.conf.embDim})
 		tmpb.Random()
 		proj := Param{
-			w: &tmpW,
-			b: &tmpb,
+			w: tmpW,
+			b: tmpb,
 		}
-		attnLayer := Attention{
+		attnLayer := GPT2Attention{
 			attn: attn,
 			proj: proj,
 		}
@@ -186,30 +170,30 @@ func (g *GPT2) Init() {
 		tmpb = data.NewTensor(nil, []int{1, g.conf.embDim})
 		tmpb.Random()
 		ln2 := Param{
-			w: &tmpW,
-			b: &tmpb,
+			w: tmpW,
+			b: tmpb,
 		}
 		tmpW = data.NewTensor(nil, []int{g.conf.embDim, 3 * g.conf.ctxLen})
 		tmpW.Random()
 		tmpb = data.NewTensor(nil, []int{1, 3 * g.conf.ctxLen})
 		tmpb.Random()
 		fc := Param{
-			w: &tmpW,
-			b: &tmpb,
+			w: tmpW,
+			b: tmpb,
 		}
 		tmpW = data.NewTensor(nil, []int{3 * g.conf.ctxLen, g.conf.embDim})
 		tmpW.Random()
 		tmpb = data.NewTensor(nil, []int{1, g.conf.embDim})
 		tmpb.Random()
 		proj = Param{
-			w: &tmpW,
-			b: &tmpb,
+			w: tmpW,
+			b: tmpb,
 		}
 		mlpLayer := MLP{
 			fc:   fc,
 			proj: proj,
 		}
-		block := Block{
+		block := GPT2Block{
 			ln1:  ln1,
 			attn: attnLayer,
 			ln2:  ln2,
@@ -223,23 +207,23 @@ func (g *GPT2) Init() {
 	tmpb := data.NewTensor(nil, []int{1, g.conf.embDim})
 	tmpb.Random()
 	g.lnF = Param{
-		w: &tmpW,
-		b: &tmpb,
+		w: tmpW,
+		b: tmpb,
 	}
 }
 
-func (g *GPT2) Forward(tokens []int) data.Tensor {
+func (g GPT2) Forward(tokens []int) data.Tensor {
 	l := make([]int, len(tokens))
 	for i := range tokens {
 		l[i] = i
 	}
 	te := g.wte.w.SubTensor(tokens)
 	pe := g.wpe.w.SubTensor(l)
-	x := te.Add(&pe)
+	x := te.Add(pe)
 	for _, block := range g.blocks {
-		x = transformerBlock(&x, block, g.conf)
+		x = transformerBlock(x, block, g.conf)
 	}
-	x = utils.LayerNorm(&x, g.lnF.w, g.lnF.b)
+	x = utils.LayerNorm(x, g.lnF.w, g.lnF.b)
 	return x
 }
 

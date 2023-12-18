@@ -25,7 +25,7 @@ func NewTensor(data [][]float64, shape []int) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Random() {
+func (t Tensor) Random() {
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < t.Shape[1]; j++ {
 			t.Data[i][j] = rand.Float64()
@@ -33,7 +33,7 @@ func (t *Tensor) Random() {
 	}
 }
 
-func (t *Tensor) Fill(val float64) {
+func (t Tensor) Fill(val float64) {
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < t.Shape[1]; j++ {
 			t.Data[i][j] = val
@@ -41,7 +41,7 @@ func (t *Tensor) Fill(val float64) {
 	}
 }
 
-func (t *Tensor) SubTensor(pos []int) (r Tensor) {
+func (t Tensor) SubTensor(pos []int) (r Tensor) {
 	r = NewTensor(nil, []int{len(pos), t.Shape[1]})
 	for i, val := range pos {
 		r.Data[i] = t.Data[val]
@@ -49,7 +49,7 @@ func (t *Tensor) SubTensor(pos []int) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Transpose() (r Tensor) {
+func (t Tensor) Transpose() (r Tensor) {
 	r = NewTensor(nil, []int{t.Shape[1], t.Shape[0]})
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < t.Shape[1]; j++ {
@@ -59,7 +59,7 @@ func (t *Tensor) Transpose() (r Tensor) {
 	return
 }
 
-func (t *Tensor) UpTri() {
+func (t Tensor) UpTri() {
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < t.Shape[1]; j++ {
 			if j > i {
@@ -71,7 +71,7 @@ func (t *Tensor) UpTri() {
 	}
 }
 
-func (t *Tensor) DownTri() {
+func (t Tensor) DownTri() {
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < t.Shape[1]; j++ {
 			if j > i {
@@ -83,7 +83,7 @@ func (t *Tensor) DownTri() {
 	}
 }
 
-func (t *Tensor) Add(s *Tensor) (r Tensor) {
+func (t Tensor) Add(s Tensor) (r Tensor) {
 	r = NewTensor(nil, t.Shape)
 	bx := 1
 	if s.Shape[0] == 1 {
@@ -101,7 +101,7 @@ func (t *Tensor) Add(s *Tensor) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Sub(s *Tensor) (r Tensor) {
+func (t Tensor) Sub(s Tensor) (r Tensor) {
 	bx := 1
 	if s.Shape[0] == 1 {
 		bx = 0
@@ -119,7 +119,7 @@ func (t *Tensor) Sub(s *Tensor) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Mul(s *Tensor) (r Tensor) {
+func (t Tensor) Mul(s Tensor) (r Tensor) {
 	bx := 1
 	if s.Shape[0] == 1 {
 		bx = 0
@@ -137,7 +137,7 @@ func (t *Tensor) Mul(s *Tensor) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Div(s *Tensor) (r Tensor) {
+func (t Tensor) Div(s Tensor) (r Tensor) {
 	bx := 1
 	if s.Shape[0] == 1 {
 		bx = 0
@@ -155,7 +155,7 @@ func (t *Tensor) Div(s *Tensor) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Sum(axis int) (r Tensor) {
+func (t Tensor) Sum(axis int) (r Tensor) {
 	if axis == 0 {
 		r = NewTensor(nil, []int{1, t.Shape[1]})
 		for i := 0; i < t.Shape[1]; i++ {
@@ -187,7 +187,7 @@ func (t *Tensor) Sum(axis int) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Mean(axis int) (r Tensor) {
+func (t Tensor) Mean(axis int) (r Tensor) {
 	if axis == 0 {
 		r = NewTensor(nil, []int{1, t.Shape[1]})
 		for i := 0; i < t.Shape[1]; i++ {
@@ -219,11 +219,7 @@ func (t *Tensor) Mean(axis int) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Var(axis int, u *Tensor) (r Tensor) {
-	if u == nil {
-		tmp := t.Mean(axis)
-		u = &tmp
-	}
+func (t Tensor) Var(axis int, u Tensor) (r Tensor) {
 	r = NewTensor(nil, u.Shape)
 	if axis == 0 {
 		for i := 0; i < t.Shape[1]; i++ {
@@ -254,13 +250,13 @@ func (t *Tensor) Var(axis int, u *Tensor) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Std(axis int, u *Tensor) (r Tensor) {
+func (t Tensor) Std(axis int, u Tensor) (r Tensor) {
 	v := t.Var(axis, u)
 	r = v.Apply(math.Sqrt)
 	return
 }
 
-func (t *Tensor) Max(axis int) (r Tensor) {
+func (t Tensor) Max(axis int) (r Tensor) {
 	if axis == 0 {
 		r = NewTensor(nil, []int{1, t.Shape[1]})
 		for i := 0; i < t.Shape[1]; i++ {
@@ -283,7 +279,7 @@ func (t *Tensor) Max(axis int) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Dot(s *Tensor) (r Tensor) {
+func (t Tensor) Dot(s Tensor) (r Tensor) {
 	r = NewTensor(nil, []int{t.Shape[0], s.Shape[1]})
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < s.Shape[1]; j++ {
@@ -298,7 +294,7 @@ func (t *Tensor) Dot(s *Tensor) (r Tensor) {
 	return
 }
 
-func (t *Tensor) Apply(fn func(float64) float64) (r Tensor) {
+func (t Tensor) Apply(fn func(float64) float64) (r Tensor) {
 	r = NewTensor(nil, t.Shape)
 	for i := 0; i < t.Shape[0]; i++ {
 		for j := 0; j < t.Shape[1]; j++ {

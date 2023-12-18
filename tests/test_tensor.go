@@ -15,26 +15,26 @@ func TestTensor() {
 
 	u := t.Mean(1)
 	fmt.Println("\nmean of t: ", u)
-	fmt.Println("\nvar of t: ", t.Var(1, &u))
-	fmt.Println("\nstd of t: ", t.Std(1, &u))
+	fmt.Println("\nvar of t: ", t.Var(1, u))
+	fmt.Println("\nstd of t: ", t.Std(1, u))
 
 	u = t.Mean(0)
 	fmt.Println("\nmean of t: ", u)
-	fmt.Println("\nvar of t: ", t.Var(0, &u))
-	fmt.Println("\nstd of t: ", t.Std(0, &u))
+	fmt.Println("\nvar of t: ", t.Var(0, u))
+	fmt.Println("\nstd of t: ", t.Std(0, u))
 
 	s := data.NewTensor(sData, []int{1, 6})
 
-	a := t.Add(&s)
+	a := t.Add(s)
 	fmt.Println("\nt + s: ", a)
 
-	a = t.Sub(&s)
+	a = t.Sub(s)
 	fmt.Println("\nt - s: ", a)
 
-	a = t.Mul(&s)
+	a = t.Mul(s)
 	fmt.Println("\nt * s: ", a)
 
-	a = t.Div(&s)
+	a = t.Div(s)
 	fmt.Println("\nt / s: ", a)
 
 	fmt.Println("\nmax of t: ", t.Max(1))
@@ -42,7 +42,7 @@ func TestTensor() {
 	fmt.Println("\nsum of t: ", t.Sum(1))
 
 	tT := t.Transpose()
-	tmp := t.Dot(&tT)
+	tmp := t.Dot(tT)
 	fmt.Println(tmp)
 
 }

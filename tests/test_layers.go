@@ -22,7 +22,7 @@ func TestLayers() {
 	w := data.NewTensor(wData, []int{4, 6})
 	b := data.NewTensor(bData, []int{1, 6})
 
-	fmt.Println("layer norm: ", utils.LayerNorm(&t, &w, &b))
+	fmt.Println("layer norm: ", utils.LayerNorm(t, w, b))
 
-	fmt.Println("softmax of t: ", utils.Softmax(&t, 1))
+	fmt.Println("softmax of t: ", utils.Softmax(t, 1))
 }
