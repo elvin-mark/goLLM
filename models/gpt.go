@@ -227,6 +227,23 @@ func (g GPT2) Forward(tokens []int) data.Tensor {
 	return x
 }
 
+func (g GPT2) Generate(tokens []int, maxLen int) (seq []int) {
+	embWT := g.wte.w.Transpose()
+	var newToken int
+	var logits data.Tensor
+	for i := 0; i < maxLen; i++ {
+		o := g.Forward(tokens)
+		logits = o.Dot(embWT)
+		newToken = SamplesProbs(logits.Data[len(tokens)-1], 0.85, 5)
+		tokens = append(tokens, newToken)
+	}
+	return tokens
+}
+
+func (g GPT2) LoadWeights(modelPath string) {
+
+}
+
 func NewGPT2Config() GPT2Config {
 	return GPT2Config{
 		nHeads:    12,
