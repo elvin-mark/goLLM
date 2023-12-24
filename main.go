@@ -48,6 +48,9 @@ func rwkv(prompt string) {
 }
 
 func main() {
-	// gpt(os.Args[1])
-	rwkv(os.Args[1])
+	if os.Args[1] == "gpt" {
+		gpt(os.Args[2])
+	} else if os.Args[1] == "rwkv" {
+		rwkv(os.Args[2])
+	}
 }
