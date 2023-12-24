@@ -1,7 +1,10 @@
 package models
 
 import (
-	"math"
+	"bytes"
+	"encoding/binary"
+	"log"
+	"os"
 
 	"github.com/elvin-mark/goLLM/data"
 	"github.com/elvin-mark/goLLM/utils"
@@ -42,8 +45,8 @@ type GPT2 struct {
 
 func attention(q data.Tensor, k data.Tensor, v data.Tensor, mask data.Tensor) (r data.Tensor) {
 	o := q.Dot(k.Transpose())
-	tmp := data.NewTensor([][]float64{{math.Sqrt(float64(q.Shape[1]))}}, []int{1, 1})
-	r = o.Div(tmp).Add(mask).Dot(v)
+	tmp := data.NewTensor([][]float32{{data.Sqrt(float32(q.Shape[1]))}}, []int{1, 1})
+	r = utils.Softmax(o.Div(tmp).Add(mask), 1).Dot(v)
 	return
 }
 
@@ -97,7 +100,7 @@ func mha(x data.Tensor, attn GPT2Attention, conf GPT2Config) (r data.Tensor) {
 	tmp := make([]data.Tensor, 0)
 	mask := data.NewTensor(nil, []int{x.Shape[0], x.Shape[0]})
 	mask.UpTri()
-	fn := func(x float64) float64 {
+	fn := func(x float32) float32 {
 		return x * -10000000000
 	}
 	mask = mask.Apply(fn)
@@ -240,8 +243,47 @@ func (g GPT2) Generate(tokens []int, maxLen int) (seq []int) {
 	return tokens
 }
 
-func (g GPT2) LoadWeights(modelPath string) {
+func loadMatrix(buf *bytes.Reader, mat [][]float32, rows int) {
+	for i := 0; i < rows; i++ {
+		err := binary.Read(buf, binary.LittleEndian, mat[i])
+		if err != nil {
+			log.Fatalf("could not get matrix values: %v", err)
+			return
+		}
+	}
+}
 
+func (g GPT2) LoadWeights(modelPath string) {
+	bs, err := os.ReadFile(modelPath)
+	if err != nil {
+		return
+	}
+	buf := bytes.NewReader(bs)
+	loadMatrix(buf, g.wte.w.Data, g.conf.vocabSize)
+	loadMatrix(buf, g.wpe.w.Data, g.conf.ctxLen)
+
+	for l := 0; l < g.conf.nLayers; l++ {
+		loadMatrix(buf, g.blocks[l].ln1.w.Data, 1)
+		loadMatrix(buf, g.blocks[l].ln1.b.Data, 1)
+
+		loadMatrix(buf, g.blocks[l].attn.attn.w.Data, g.conf.embDim)
+		loadMatrix(buf, g.blocks[l].attn.attn.b.Data, 1)
+
+		loadMatrix(buf, g.blocks[l].ln2.w.Data, 1)
+		loadMatrix(buf, g.blocks[l].ln2.b.Data, 1)
+
+		loadMatrix(buf, g.blocks[l].attn.proj.w.Data, g.conf.embDim)
+		loadMatrix(buf, g.blocks[l].attn.proj.b.Data, 1)
+
+		loadMatrix(buf, g.blocks[l].mlp.fc.w.Data, g.conf.embDim)
+		loadMatrix(buf, g.blocks[l].mlp.fc.b.Data, 1)
+
+		loadMatrix(buf, g.blocks[l].mlp.proj.w.Data, 3*g.conf.ctxLen)
+		loadMatrix(buf, g.blocks[l].mlp.proj.b.Data, 1)
+
+	}
+	loadMatrix(buf, g.lnF.w.Data, 1)
+	loadMatrix(buf, g.lnF.b.Data, 1)
 }
 
 func NewGPT2Config() GPT2Config {
@@ -250,7 +292,7 @@ func NewGPT2Config() GPT2Config {
 		nLayers:   12,
 		ctxLen:    1024,
 		embDim:    768,
-		vocabSize: 50000,
+		vocabSize: 50257,
 	}
 }
 func NewGPT2(conf GPT2Config) GPT2 {

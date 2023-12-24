@@ -1,8 +1,6 @@
 package models
 
 import (
-	"math"
-
 	"github.com/elvin-mark/goLLM/data"
 	"github.com/elvin-mark/goLLM/utils"
 )
@@ -48,16 +46,16 @@ type RWKV struct {
 	head   Param
 }
 
-func helperFn1(inp float64) float64 {
+func helperFn1(inp float32) float32 {
 	return 1 - inp
 }
 
-func helperFn2(inp float64) float64 {
-	return -math.Exp(inp)
+func helperFn2(inp float32) float32 {
+	return -data.Exp(inp)
 }
 
-func square(inp float64) float64 {
-	return math.Pow(inp, 2)
+func square(inp float32) float32 {
+	return inp * inp
 }
 
 func timeMixing(x, lastX, lastNum, lastDen data.Tensor, attn RWKVAttention) (o, oldX, newNum, newDen data.Tensor) {
@@ -65,14 +63,14 @@ func timeMixing(x, lastX, lastNum, lastDen data.Tensor, attn RWKVAttention) (o, 
 	v := attn.value.w.Dot(x.Mul(attn.timeMixV.w).Add(lastX.Mul(attn.timeMixV.w.Apply(helperFn1))))
 	r := attn.receptance.w.Dot(x.Mul(attn.timeMixR.w).Add(lastX.Mul(attn.timeMixR.w.Apply(helperFn1))))
 
-	num := lastNum.Add(attn.timeFirst.w.Add(k).Apply(math.Exp).Mul(v))
-	den := lastDen.Add(attn.timeFirst.w.Add(k).Apply(math.Exp))
+	num := lastNum.Add(attn.timeFirst.w.Add(k).Apply(data.Exp).Mul(v))
+	den := lastDen.Add(attn.timeFirst.w.Add(k).Apply(data.Exp))
 	wkv := num.Div(den)
 
 	rwkv := r.Apply(utils.Sigmoid).Mul(wkv)
 
-	num = attn.timeDecay.w.Apply(helperFn2).Apply(math.Exp).Mul(lastNum).Add(k.Apply(math.Exp).Mul(v))
-	den = attn.timeDecay.w.Apply(helperFn2).Apply(math.Exp).Mul(lastDen).Add(k.Apply(math.Exp))
+	num = attn.timeDecay.w.Apply(helperFn2).Apply(data.Exp).Mul(lastNum).Add(k.Apply(data.Exp).Mul(v))
+	den = attn.timeDecay.w.Apply(helperFn2).Apply(data.Exp).Mul(lastDen).Add(k.Apply(data.Exp))
 	return attn.output.w.Dot(rwkv), x, num, den
 }
 

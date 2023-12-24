@@ -23,8 +23,8 @@ type Pair struct {
 	b string
 }
 
-func SamplesProbs(probs []float64, temperature float64, topK int) int {
-	maxProb := math.Inf(-1)
+func SamplesProbs(probs []float32, temperature float32, topK int) int {
+	maxProb := float32(math.Inf(-1))
 	maxIdx := 0
 	for i, prob := range probs {
 		if prob > maxProb {

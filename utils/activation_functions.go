@@ -1,15 +1,19 @@
 package utils
 
-import "math"
+import (
+	"math"
 
-func Sigmoid(x float64) (t float64) {
-	return 1 / (1 + math.Exp(x))
+	"github.com/elvin-mark/goLLM/data"
+)
+
+func Sigmoid(x float32) (t float32) {
+	return 1 / (1 + data.Exp(x))
 }
 
-func GeLU(x float64) (t float64) {
-	return 0.5 * x * (1 + math.Tanh(math.Sqrt(2/math.Pi)*(x+0.044715*math.Pow(x, 3))))
+func GeLU(x float32) (t float32) {
+	return 0.5 * x * (1 + data.Tanh(data.Sqrt(2/math.Pi)*(x+0.044715*(x*x*x))))
 }
 
-func ReLU(x float64) (t float64) {
-	return math.Max(x, 0)
+func ReLU(x float32) (t float32) {
+	return data.Max(x, 0)
 }
