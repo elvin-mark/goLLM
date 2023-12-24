@@ -1,6 +1,8 @@
 package models
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -33,6 +35,16 @@ func SamplesProbs(probs []float32, temperature float32, topK int) int {
 		}
 	}
 	return maxIdx
+}
+
+func LoadMatrix(buf *bytes.Reader, mat [][]float32, rows int) {
+	for i := 0; i < rows; i++ {
+		err := binary.Read(buf, binary.LittleEndian, mat[i])
+		if err != nil {
+			log.Fatalf("could not get matrix values: %v", err)
+			return
+		}
+	}
 }
 
 func bytesToUnicode() (dict map[byte]string) {

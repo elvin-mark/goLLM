@@ -7,7 +7,7 @@ import (
 )
 
 func Sigmoid(x float32) (t float32) {
-	return 1 / (1 + data.Exp(x))
+	return 1 / (1 + data.Exp(-x))
 }
 
 func GeLU(x float32) (t float32) {
